@@ -1,0 +1,71 @@
+version: '2'
+
+volumes:
+  audio-data:
+
+services:
+  audio-loader:
+    build: ./audio-loader
+    volumes:
+      - audio-data:/data
+    restart: "no"
+
+  audio:
+    build: ./ducking-audio
+    privileged: true
+    labels:
+      io.balena.features.dbus: 1
+    environment:
+      - AUDIO_OUTPUT=DAC
+
+  bluetooth:
+    image: bh.cr/balenalabs/bluetooth-rpi
+    restart: on-failure
+    network_mode: host
+    environment:
+      - BT_DEVICE_NAME=SmashAndFlash
+    cap_add:
+      - NET_ADMIN
+    labels:
+      io.balena.features.dbus: 1
+
+  web-backend:
+    build: ./web-interface/backend
+    privileged: true
+    volumes:
+      - audio-data:/data
+    environment:
+      - PULSE_SERVER=tcp:audio:4317
+      - BUTTON_PIN=17
+      - LIGHT_PIN=22
+      - LIGHT_DURATION=5.0
+      - AUDIO_DIRECTORY=/data/audio
+    devices:
+      - /dev/mem
+      - /dev/gpiomem
+    ports:
+      - "8000:8000"
+    depends_on:
+      - audio
+
+  web-frontend:
+    build: ./web-interface/frontend
+    ports:
+      - "80:80"
+    environment:
+      - REACT_APP_API_URL=
+    depends_on:
+      - web-backend
+
+  button-listener:
+    build: ./hardware-button-listener
+    privileged: true
+    environment:
+      - API_URL=http://web-backend:8000
+      - BUTTON_PIN=17
+      - DEBOUNCE_TIME=1000
+    devices:
+      - /dev/mem
+      - /dev/gpiomem
+    depends_on:
+      - web-backend

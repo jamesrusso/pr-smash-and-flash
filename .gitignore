@@ -1,0 +1,9 @@
+.DS_Store
+web-interface/frontend/node_modules
+web-interface/frontend/build
+hardware-button-listener/requirements.txt
+audio-loader/*.wav
+audio-loader/*.mp3
+audio-loader/*.ogg
+audio-loader/*.flac
+audio-loader/*.m4a
