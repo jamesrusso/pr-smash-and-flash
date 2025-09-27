@@ -1,8 +1,0 @@
-{
-  "button_pin": 17,
-  "light_pin": 27,
-  "light_duration": 5.0,
-  "audio_directory": "/data/audio",
-  "pulseaudio_server": "tcp:audio:4713",
-  "debounce_time": 300
-}
