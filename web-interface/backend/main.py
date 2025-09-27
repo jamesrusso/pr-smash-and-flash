@@ -161,7 +161,8 @@ class AudioController:
                 async with session.get(f"http://{self.wled_host}/json", timeout=aiohttp.ClientTimeout(total=5)) as response:
                     if response.status == 200:
                         data = await response.json()
-                        preset = data.get('ps', -1)
+                        state = data.get('state', {})
+                        preset = state.get('ps', -1)
                         logger.info(f"Current WLED preset: {preset}")
                         return preset
         except Exception as e:
