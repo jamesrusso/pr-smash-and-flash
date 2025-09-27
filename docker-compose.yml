@@ -36,10 +36,10 @@ services:
       - audio-data:/data
     environment:
       - PULSE_SERVER=tcp:audio:4317
-      - BUTTON_PIN=17
       - LIGHT_PIN=22
-      - LIGHT_DURATION=5.0
       - AUDIO_DIRECTORY=/data/audio
+      - WLED_HOST=${WLED_HOST}
+      - WLED_PRESET=${WLED_PRESET}
     devices:
       - /dev/mem
       - /dev/gpiomem

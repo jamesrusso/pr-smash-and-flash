@@ -10,7 +10,8 @@ import subprocess
 import time
 import logging
 import asyncio
-from typing import List, Dict, Any
+import aiohttp
+from typing import List, Dict, Any, Optional
 try:
     import RPi.GPIO as GPIO
 except:
@@ -38,6 +39,12 @@ class AudioController:
         self.audio_directory = os.getenv('AUDIO_DIRECTORY', '/data/audio')
         self.pulse_server = os.getenv('PULSE_SERVER', 'tcp:audio:4317')
 
+        # WLED Configuration
+        self.wled_host = os.getenv('WLED_HOST', '')
+        self.wled_preset = int(os.getenv('WLED_PRESET', '1')) if os.getenv('WLED_PRESET') else 1
+        self.wled_enabled = bool(self.wled_host)
+        self.original_wled_preset = None
+
         self.light_on = False
         self.is_playing = False
         self.current_audio_process = None
@@ -46,6 +53,8 @@ class AudioController:
 
         self.setup_gpio()
         logger.info(f"AudioController initialized - Light: {self.light_pin}")
+        if self.wled_enabled:
+            logger.info(f"WLED enabled - Host: {self.wled_host}, Preset: {self.wled_preset}")
 
     def setup_gpio(self):
         try:
@@ -142,11 +151,62 @@ class AudioController:
             self.current_audio_process = None
             await self.turn_light_off()
 
+    async def get_wled_preset(self) -> Optional[int]:
+        """Get current WLED preset"""
+        if not self.wled_enabled:
+            return None
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"http://{self.wled_host}/json", timeout=aiohttp.ClientTimeout(total=5)) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        preset = data.get('ps', -1)
+                        logger.info(f"Current WLED preset: {preset}")
+                        return preset
+        except Exception as e:
+            logger.error(f"Failed to get WLED preset: {e}")
+            return None
+
+    async def set_wled_preset(self, preset: int) -> bool:
+        """Set WLED preset"""
+        if not self.wled_enabled:
+            return True
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                payload = {"ps": preset}
+                async with session.post(
+                    f"http://{self.wled_host}/json",
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=5)
+                ) as response:
+                    if response.status == 200:
+                        logger.info(f"Set WLED preset to {preset}")
+                        return True
+                    else:
+                        logger.error(f"Failed to set WLED preset: HTTP {response.status}")
+                        return False
+        except Exception as e:
+            logger.error(f"Failed to set WLED preset: {e}")
+            return False
+
     async def turn_light_on(self) -> bool:
         try:
+            # Save current WLED preset before changing
+            if self.wled_enabled and self.original_wled_preset is None:
+                self.original_wled_preset = await self.get_wled_preset()
+                logger.info(f"Saved original WLED preset: {self.original_wled_preset}")
+
+            # Turn on GPIO light
             GPIO.output(self.light_pin, GPIO.HIGH)
             self.light_on = True
             logger.info(f"Light ON")
+
+            # Set WLED to configured preset
+            if self.wled_enabled:
+                await self.set_wled_preset(self.wled_preset)
+
             return True
 
         except Exception as e:
@@ -155,9 +215,16 @@ class AudioController:
 
     async def turn_light_off(self) -> bool:
         try:
+            # Turn off GPIO light
             GPIO.output(self.light_pin, GPIO.LOW)
             self.light_on = False
             logger.info("Light OFF")
+
+            # Restore original WLED preset
+            if self.wled_enabled and self.original_wled_preset is not None:
+                await self.set_wled_preset(self.original_wled_preset)
+                logger.info(f"Restored WLED preset to {self.original_wled_preset}")
+                self.original_wled_preset = None
 
             return True
 

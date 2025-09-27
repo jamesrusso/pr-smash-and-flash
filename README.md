@@ -82,7 +82,6 @@ Configure via `docker-compose.yml` or Balena device variables:
 
 - `BUTTON_PIN`: GPIO pin for button (default: 17)
 - `LIGHT_PIN`: GPIO pin for light (default: 22)
-- `LIGHT_DURATION`: How long light stays on in seconds (default: 5.0)
 - `AUDIO_OUTPUT`: Audio output device (default: DAC)
 - `DEBOUNCE_TIME`: Button debounce in milliseconds (default: 1000)
 
